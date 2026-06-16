@@ -1,0 +1,8 @@
+CLAUDE.local.md
+.env
+__pycache__/
+*.pyc
+chroma_db/
+contract_docs/
+.venv/
+venv/
