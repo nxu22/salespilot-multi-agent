@@ -4,14 +4,21 @@ Chunk contract_docs/*.md by ## section headers and load into ChromaDB.
 Run once before using the RAG agent:  python ingest_contracts.py
 """
 
+import os
 import re
 from pathlib import Path
 
 import chromadb
+import chromadb.utils.embedding_functions as ef
 
 DOCS_DIR    = Path("contract_docs")
 CHROMA_DIR  = "chroma_db"
 COLLECTION  = "contracts"
+
+_embed_fn = ef.VoyageAIEmbeddingFunction(
+    api_key=os.environ["VOYAGE_API_KEY"],
+    model_name="voyage-3-lite",
+)
 
 
 def _chunk_markdown(text: str, filename: str) -> list[dict]:
@@ -61,7 +68,7 @@ def ingest(reset: bool = False) -> None:
         except Exception:
             pass
 
-    collection = client.get_or_create_collection(COLLECTION)
+    collection = client.get_or_create_collection(COLLECTION, embedding_function=_embed_fn)
 
     md_files = sorted(DOCS_DIR.glob("*.md"))
     if not md_files:
