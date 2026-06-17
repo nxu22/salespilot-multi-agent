@@ -17,7 +17,7 @@ COLLECTION  = "contracts"
 
 _embed_fn = ef.VoyageAIEmbeddingFunction(
     api_key=os.environ["VOYAGE_API_KEY"],
-    model_name="voyage-3-lite",
+    model_name="voyage-3.5-lite",
 )
 
 

@@ -1,0 +1,12 @@
+langgraph
+langchain-anthropic
+anthropic
+psycopg2-binary
+chromadb
+sqlparse
+fastapi
+uvicorn
+python-dotenv
+langfuse
+faker
+voyageai

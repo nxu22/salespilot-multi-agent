@@ -8,7 +8,7 @@ from graph.state import AgentState
 
 _embed_fn   = ef.VoyageAIEmbeddingFunction(
     api_key=os.environ["VOYAGE_API_KEY"],
-    model_name="voyage-3-lite",
+    model_name="voyage-3.5-lite",
 )
 _client     = chromadb.PersistentClient(path="chroma_db")
 _collection = _client.get_or_create_collection("contracts", embedding_function=_embed_fn)
