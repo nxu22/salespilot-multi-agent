@@ -10,3 +10,5 @@ python-dotenv
 langfuse
 faker
 voyageai
+prometheus-client
+prometheus-fastapi-instrumentator<8

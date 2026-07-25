@@ -8,12 +8,21 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 from graph.build import build_graph
 
 app   = FastAPI()
 graph = build_graph()
+
+# Prometheus. Must be registered before the catch-all StaticFiles mount at the
+# bottom of this file — Starlette matches routes in registration order, so a
+# later mount("/") would swallow /metrics.
+Instrumentator(
+    should_group_status_codes=True,
+    excluded_handlers=["/metrics", "/health"],
+).instrument(app).expose(app, include_in_schema=False)
 
 
 class Question(BaseModel):
