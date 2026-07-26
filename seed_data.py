@@ -545,10 +545,16 @@ def verify(conn: psycopg2.extensions.connection) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description="SalesPilot seed script")
     parser.add_argument("--verify", action="store_true",
-                        help="Run acceptance queries after seeding")
+                        help="Run the acceptance queries. On its own this is read-only; "
+                             "combine with --drop to rebuild the dataset and then verify")
     parser.add_argument("--drop", action="store_true",
                         help="Drop all tables before recreating (destructive)")
     args = parser.parse_args()
+
+    # --verify on its own is a read-only check. Seeding happens for every other
+    # invocation, including --drop --verify. Without this, `--verify` silently
+    # appended a second full dataset on top of the existing one.
+    should_seed = args.drop or not args.verify
 
     conn = psycopg2.connect(DATABASE_URL)
 
@@ -562,14 +568,15 @@ def main() -> None:
         cur.close()
         print("Dropped all tables.")
 
-    print("Seeding…")
-    seed(conn)
+    if should_seed:
+        print("Seeding…")
+        seed(conn)
 
-    print("Writing contract docs…")
-    write_contract_docs(conn)
+        print("Writing contract docs…")
+        write_contract_docs(conn)
 
-    print("Creating sp_readonly role…")
-    create_readonly_role(conn)
+        print("Creating sp_readonly role…")
+        create_readonly_role(conn)
 
     if args.verify:
         verify(conn)
