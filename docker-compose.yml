@@ -1,0 +1,68 @@
+# Local stack: the API plus the two observability services.
+#
+# Postgres is deliberately NOT here — it already runs as the standalone
+# `salespilot-pg` container created by the setup in CLAUDE.local.md, and the
+# seeded data lives in that container's volume. The API reaches it through the
+# Docker host rather than a compose network.
+#
+# Every published port is bound to 127.0.0.1 so nothing is reachable off-box.
+
+services:
+  api:
+    build: .
+    container_name: salespilot-api
+    env_file: .env
+    environment:
+      # .env points at localhost, which inside a container is the container
+      # itself. Override so the API reaches the host's Postgres instead.
+      SQL_AGENT_DATABASE_URL: ${SQL_AGENT_DATABASE_URL_DOCKER:-postgresql://sp_readonly:readonly@host.docker.internal:5433/salespilot}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Written by ingest_contracts.py on the host. Mounted read-write because
+      # Chroma's SQLite backend opens the file for writing (WAL/journal) even
+      # when only serving queries — a :ro mount fails at import with
+      # "attempt to write a readonly database".
+      - ./chroma_db:/app/chroma_db
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: salespilot-prometheus
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: salespilot-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:?set GRAFANA_USER in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:

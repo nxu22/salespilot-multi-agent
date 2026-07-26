@@ -1,0 +1,108 @@
+groups:
+  - name: salespilot-availability
+    rules:
+      - alert: APIDown
+        expr: up{job="salespilot"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SalesPilot API is not being scraped"
+          description: "Prometheus cannot reach /metrics. The API is down or the container is unhealthy."
+
+      - alert: AgentErrorRateHigh
+        expr: |
+          sum by (agent) (rate(agent_errors_total[5m]))
+            /
+          clamp_min(sum by (agent) (rate(agent_requests_total[5m])), 0.001)
+            > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.agent }} is failing more than 10% of executions"
+          description: "Check agent_errors_total by error_type to see which exception dominates."
+
+  - name: salespilot-latency
+    rules:
+      # Measured baseline is roughly 0.7-1.5s per node, so 15s means something
+      # is genuinely wrong rather than merely slow.
+      - alert: AgentLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (agent, le) (rate(agent_duration_seconds_bucket[10m]))
+          ) > 15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.agent }} P95 latency above 15s"
+          description: "For sql_agent compare against sql_query_duration_seconds to tell database time from model time."
+
+      # Retrieval is dominated by the Voyage embedding round-trip, so this
+      # fires on provider latency far more often than on vector search.
+      - alert: RetrievalSlow
+        expr: |
+          histogram_quantile(0.95, rate(retrieval_duration_seconds_bucket[10m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Vector retrieval P95 above 5s"
+          description: "Almost certainly the Voyage embedding call rather than ChromaDB."
+
+  - name: salespilot-quality
+    rules:
+      # The canary for a lost or unreadable index: retrieval still runs, but
+      # comes back with nothing to ground an answer on.
+      - alert: RetrievalReturnsNoChunks
+        expr: |
+          rate(retrieval_chunks_sum[10m]) / clamp_min(rate(retrieval_chunks_count[10m]), 0.001) < 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Retrieval is returning empty results"
+          description: "The Chroma collection is likely missing or was built with a different embedding model. Re-run ingest_contracts.py --reset."
+
+      # Refusals are a designed behaviour, not a failure — but a sustained rise
+      # means coverage or retrieval quality has degraded.
+      - alert: RefusalRateHigh
+        expr: |
+          sum(rate(refusals_total[30m]))
+            /
+          clamp_min(sum(rate(agent_requests_total{agent="synthesis"}[30m])), 0.001)
+            > 0.4
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 40% of answers are refusals"
+          description: "Either the questions have drifted outside the dataset, or retrieval has stopped surfacing usable sources."
+
+  - name: salespilot-cost
+    rules:
+      - alert: SpendRateHigh
+        expr: sum(rate(llm_cost_usd_total[1h])) * 3600 > 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM spend above $1/hour"
+          description: "Baseline is roughly $0.003 per question. Check llm_tokens_total by agent for a prompt that has grown."
+
+      # A model id absent from MODEL_PRICING records tokens but zero cost, so
+      # spend silently under-reports. metrics.py logs a warning; this catches it
+      # from the metrics side.
+      - alert: UnpricedModelInUse
+        expr: |
+          sum by (model) (rate(llm_tokens_total[30m])) > 0
+            unless
+          sum by (model) (rate(llm_cost_usd_total[30m])) > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Model {{ $labels.model }} is recording tokens but no cost"
+          description: "Add it to MODEL_PRICING in metrics.py."

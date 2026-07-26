@@ -1,0 +1,16 @@
+.git/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Secrets are injected at run time via env_file, never baked into the image.
+.env
+CLAUDE.local.md
+
+# Bind-mounted at run time rather than copied — it is regenerated data.
+chroma_db/
+
+.claude/
+observability/
+docs/

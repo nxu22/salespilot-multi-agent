@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: SalesPilot
+    type: file
+    disableDeletion: true
+    # Edits made in the UI are overwritten from disk — the JSON is the source
+    # of truth so the dashboard survives a volume wipe.
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
