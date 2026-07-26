@@ -12,8 +12,13 @@ Run from the project root:
 import sys
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding="utf-8")   # PASS/FAIL glyphs are non-cp1252
+
 # Make sure the project root is on the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dotenv import load_dotenv
+load_dotenv()
 
 import chromadb
 

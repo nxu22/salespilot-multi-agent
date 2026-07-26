@@ -10,6 +10,9 @@ from pathlib import Path
 
 import chromadb
 import chromadb.utils.embedding_functions as ef
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DOCS_DIR    = Path("contract_docs")
 CHROMA_DIR  = "chroma_db"
