@@ -2,6 +2,7 @@ import os
 import anthropic
 from langfuse import observe
 from graph.state import AgentState
+from metrics import record_usage, track_agent
 
 _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -44,6 +45,7 @@ Examples:
 
 
 @observe()
+@track_agent("orchestrator")
 def orchestrator_node(state: AgentState) -> dict:
     response = _client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -53,6 +55,7 @@ def orchestrator_node(state: AgentState) -> dict:
         tool_choice={"type": "any"},   # forces a tool call, no free-text allowed
         messages=[{"role": "user", "content": state["question"]}],
     )
+    record_usage("orchestrator", response.model, response.usage)
 
     tool_block = next(b for b in response.content if b.type == "tool_use")
     required_agents = tool_block.input["required_agents"]

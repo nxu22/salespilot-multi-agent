@@ -2,8 +2,15 @@ import os
 import anthropic
 from langfuse import observe
 from graph.state import AgentState
+from metrics import record_refusal, record_usage, track_agent
 
 _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+# Metric-only copy of the refusal wording. Used to detect the model-authored
+# refusal, which is not a code branch. Kept in sync by hand with rule 3 of the
+# system prompt below, the hard-coded return in synthesis_node, and
+# _REFUSAL_PHRASES in tests/eval_e2e.py.
+_REFUSAL_PHRASE = "could not find this in the available data"
 
 _SYSTEM_PROMPT = """\
 You are a sales intelligence assistant. Your job is to answer business questions
@@ -40,12 +47,14 @@ def _format_rag(rag_result: dict | None) -> str:
 
 
 @observe()
+@track_agent("synthesis")
 def synthesis_node(state: AgentState) -> dict:
     sql_section = _format_sql(state.get("sql_result"))
     rag_section = _format_rag(state.get("rag_result"))
 
     if not sql_section and not rag_section:
         print("[synthesis]     no data from either agent — returning not-found")
+        record_refusal("synthesis")
         return {"final_answer": "I could not find this in the available data."}
 
     data_block = "\n\n".join(filter(None, [sql_section, rag_section]))
@@ -62,6 +71,14 @@ def synthesis_node(state: AgentState) -> dict:
         messages=[{"role": "user", "content": user_message}],
     )
 
+    record_usage("synthesis", response.model, response.usage)
+
     answer = response.content[0].text.strip()
+
+    # Data reached the model but did not support an answer. Not a branch — the
+    # model decides — so it is detected by wording rather than control flow.
+    if _REFUSAL_PHRASE in answer.lower():
+        record_refusal("synthesis_llm")
+
     print(f"[synthesis]     answer: {answer[:120]}{'...' if len(answer) > 120 else ''}")
     return {"final_answer": answer}

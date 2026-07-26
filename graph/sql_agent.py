@@ -7,6 +7,7 @@ import sqlparse
 from langfuse import observe
 
 from graph.state import AgentState
+from metrics import record_usage, sql_query_duration_seconds, track_agent, track_block
 
 _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -103,19 +104,21 @@ def _extract_tables(sql: str) -> list[str]:
 
 def _run_query(sql: str) -> list[dict]:
     """Execute via sp_readonly (hard wall — SELECT-only grants at DB level)."""
-    conn = psycopg2.connect(SQL_AGENT_DATABASE_URL)
-    try:
-        cur = conn.cursor()
-        cur.execute(sql)
-        cols = [d[0] for d in cur.description]
-        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
-        cur.close()
-        return rows
-    finally:
-        conn.close()
+    with track_block(sql_query_duration_seconds):
+        conn = psycopg2.connect(SQL_AGENT_DATABASE_URL)
+        try:
+            cur = conn.cursor()
+            cur.execute(sql)
+            cols = [d[0] for d in cur.description]
+            rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+            cur.close()
+            return rows
+        finally:
+            conn.close()
 
 
 @observe()
+@track_agent("sql_agent")
 def sql_agent_node(state: AgentState) -> dict:
     print(f"[sql_agent]     generating SQL for: '{state['question']}'")
 
@@ -126,6 +129,7 @@ def sql_agent_node(state: AgentState) -> dict:
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": state["question"]}],
     )
+    record_usage("sql_agent", response.model, response.usage)
     raw = response.content[0].text
 
     # 2 — strip markdown / explanation text

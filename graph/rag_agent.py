@@ -5,6 +5,12 @@ import chromadb.utils.embedding_functions as ef
 from langfuse import observe
 
 from graph.state import AgentState
+from metrics import (
+    retrieval_chunks,
+    retrieval_duration_seconds,
+    track_agent,
+    track_block,
+)
 
 _embed_fn   = ef.VoyageAIEmbeddingFunction(
     api_key=os.environ["VOYAGE_API_KEY"],
@@ -17,18 +23,24 @@ TOP_K = 4
 
 
 @observe()
+@track_agent("rag_agent")
 def rag_agent_node(state: AgentState) -> dict:
     print(f"[rag_agent]     retrieving chunks for: '{state['question']}'")
 
-    results = _collection.query(
-        query_texts=[state["question"]],
-        n_results=TOP_K,
-        include=["documents", "metadatas"],
-    )
+    # Covers the Voyage embedding round-trip as well as the local vector search —
+    # the network hop is the dominant term, not the ANN lookup.
+    with track_block(retrieval_duration_seconds):
+        results = _collection.query(
+            query_texts=[state["question"]],
+            n_results=TOP_K,
+            include=["documents", "metadatas"],
+        )
 
     chunks  = results["documents"][0]   # list of text strings
     metas   = results["metadatas"][0]   # list of metadata dicts
     sources = [m["filename"] for m in metas]
+
+    retrieval_chunks.observe(len(chunks))
 
     print(f"[rag_agent]     retrieved {len(chunks)} chunks from: {sources}")
 
