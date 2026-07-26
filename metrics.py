@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import functools
 import inspect
+import logging
+import re
 import time
 from contextlib import contextmanager
 from typing import Any
@@ -37,6 +39,30 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
 }
 _DEFAULT_PRICE = {"input": 0.0, "output": 0.0}
+
+logger = logging.getLogger(__name__)
+
+# Model ids arrive dated ("claude-haiku-4-5-20251001"); the pricing table is
+# keyed on the undated family. Strip the suffix before lookup so a routine
+# model-version bump doesn't silently zero out cost tracking.
+_MODEL_DATE_SUFFIX = re.compile(r"-\d{8}$")
+_unpriced_models: set[str] = set()
+
+
+def _lookup_price(model: str) -> dict[str, float]:
+    if model in MODEL_PRICING:
+        return MODEL_PRICING[model]
+    base = _MODEL_DATE_SUFFIX.sub("", model)
+    if base in MODEL_PRICING:
+        return MODEL_PRICING[base]
+    if model not in _unpriced_models:
+        _unpriced_models.add(model)
+        logger.warning(
+            "No pricing entry for model %r - cost recorded as 0. "
+            "Add it to MODEL_PRICING.",
+            model,
+        )
+    return _DEFAULT_PRICE
 
 
 # --------------------------------------------------------------------------
@@ -134,10 +160,10 @@ def record_usage(agent: str, model: str, usage: Any) -> None:
     llm_tokens_total.labels(agent=agent, model=model, type="input").inc(input_tokens)
     llm_tokens_total.labels(agent=agent, model=model, type="output").inc(output_tokens)
 
-    price = MODEL_PRICING.get(model, _DEFAULT_PRICE)
+    price = _lookup_price(model)
     cost = (input_tokens * price["input"] + output_tokens * price["output"]) / 1_000_000
-    if cost:
-        llm_cost_usd_total.labels(agent=agent, model=model).inc(cost)
+    # Always inc, even at 0: a visible $0 is debuggable, a missing series is not.
+    llm_cost_usd_total.labels(agent=agent, model=model).inc(cost)
 
 
 def record_refusal(agent: str) -> None:
