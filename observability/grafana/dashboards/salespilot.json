@@ -2,21 +2,35 @@
   "uid": "salespilot-overview",
   "title": "SalesPilot — agent health & cost",
   "description": "Aggregate view. For a single request's trace, use Langfuse instead.",
-  "tags": ["salespilot", "llm"],
+  "tags": [
+    "salespilot",
+    "llm"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
   "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "panels": [
     {
       "id": 1,
       "type": "stat",
       "title": "Cost per question",
       "description": "Total LLM spend divided by questions answered. orchestrator runs exactly once per question, so its execution count is the question count.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
           "refId": "A",
@@ -25,11 +39,24 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "currencyUSD", "decimals": 4, "color": { "mode": "fixed", "fixedColor": "text" } },
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "none",
         "graphMode": "none",
         "textMode": "value",
@@ -41,17 +68,42 @@
       "type": "stat",
       "title": "Spend over range",
       "description": "Total estimated Anthropic spend across the selected time range. Voyage embedding cost is not included.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
       "targets": [
-        { "refId": "A", "expr": "sum(increase(llm_cost_usd_total[$__range]))", "instant": true }
+        {
+          "refId": "A",
+          "expr": "sum(increase(llm_cost_usd_total[$__range]))",
+          "instant": true
+        }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "currencyUSD", "decimals": 3, "color": { "mode": "fixed", "fixedColor": "text" } },
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 3,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "none",
         "graphMode": "none",
         "textMode": "value",
@@ -63,8 +115,16 @@
       "type": "stat",
       "title": "Refusal rate",
       "description": "Share of answers that declined for lack of supporting sources. This is designed behaviour — a sustained rise means coverage or retrieval quality has degraded, not that the system is broken.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
       "targets": [
         {
           "refId": "A",
@@ -76,19 +136,34 @@
         "defaults": {
           "unit": "percentunit",
           "decimals": 1,
-          "color": { "mode": "fixed", "fixedColor": "text" },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "text", "value": null },
-              { "color": "#D96C0A", "value": 0.4 }
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "#D96C0A",
+                "value": 0.4
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
@@ -99,8 +174,16 @@
       "id": 4,
       "type": "stat",
       "title": "Questions answered",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
       "targets": [
         {
           "refId": "A",
@@ -109,25 +192,45 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short", "decimals": 0, "color": { "mode": "fixed", "fixedColor": "text" } },
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "none",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center"
       }
     },
-
     {
       "id": 5,
       "type": "timeseries",
       "title": "P95 latency by agent",
       "description": "Which of the four steps is the bottleneck. Buckets run to 34s, so a flat line at the top means saturation rather than a real value.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
       "targets": [
         {
           "refId": "A",
@@ -150,15 +253,82 @@
           }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "orchestrator" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3274D9" } }] },
-          { "matcher": { "id": "byName", "options": "sql_agent" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#56A64B" } }] },
-          { "matcher": { "id": "byName", "options": "rag_agent" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A352CC" } }] },
-          { "matcher": { "id": "byName", "options": "synthesis" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D96C0A" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "orchestrator"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3274D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_agent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#56A64B"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rag_agent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#A352CC"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "synthesis"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#D96C0A"
+                }
+              }
+            ]
+          }
         ]
       },
       "options": {
-        "legend": { "showLegend": true, "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
@@ -166,8 +336,16 @@
       "type": "bargauge",
       "title": "Where the time actually goes",
       "description": "Share of each agent's wall-clock spent in its non-LLM inner block, totalled across the selected range. Low database share means optimising SQL or indexes will not help — the time is in generating the query. Retrieval share is dominated by the Voyage embedding round-trip, not the vector search. Deliberately not a rate() time series: on a bursty workload the idle gaps drag a mean toward zero and understate the real share.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
       "targets": [
         {
           "refId": "A",
@@ -183,10 +361,43 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "percentunit", "decimals": 1, "min": 0, "max": 1 },
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "min": 0,
+          "max": 1
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "sql_agent — database" },  "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#56A64B" } }] },
-          { "matcher": { "id": "byName", "options": "rag_agent — retrieval" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A352CC" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_agent — database"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#56A64B"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rag_agent — retrieval"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#A352CC"
+                }
+              }
+            ]
+          }
         ]
       },
       "options": {
@@ -194,17 +405,30 @@
         "orientation": "horizontal",
         "showUnfilled": true,
         "valueMode": "text",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
       }
     },
-
     {
       "id": 7,
       "type": "bargauge",
       "title": "Input / output token ratio by agent",
       "description": "How many input tokens each agent burns per output token. A high ratio on a fixed system prompt is the signal for prompt caching.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
       "targets": [
         {
           "refId": "A",
@@ -214,11 +438,61 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "none", "decimals": 1, "min": 0, "color": { "mode": "fixed", "fixedColor": "#3274D9" } },
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3274D9"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "orchestrator" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3274D9" } }] },
-          { "matcher": { "id": "byName", "options": "sql_agent" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#56A64B" } }] },
-          { "matcher": { "id": "byName", "options": "synthesis" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D96C0A" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "orchestrator"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3274D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_agent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#56A64B"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "synthesis"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#D96C0A"
+                }
+              }
+            ]
+          }
         ]
       },
       "options": {
@@ -226,7 +500,13 @@
         "orientation": "horizontal",
         "showUnfilled": true,
         "valueMode": "text",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
@@ -234,8 +514,16 @@
       "type": "timeseries",
       "title": "Spend rate by agent",
       "description": "Projected USD per hour at the current rate. Sums to the burn rate the SpendRateHigh alert watches.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
       "targets": [
         {
           "refId": "A",
@@ -257,24 +545,84 @@
           }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "orchestrator" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3274D9" } }] },
-          { "matcher": { "id": "byName", "options": "sql_agent" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#56A64B" } }] },
-          { "matcher": { "id": "byName", "options": "synthesis" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D96C0A" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "orchestrator"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3274D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_agent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#56A64B"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "synthesis"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#D96C0A"
+                }
+              }
+            ]
+          }
         ]
       },
       "options": {
-        "legend": { "showLegend": true, "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
-
     {
       "id": 9,
       "type": "timeseries",
       "title": "Executions and failures by agent",
       "description": "Node executions per second. Failures are drawn from agent_errors_total; a persistent non-zero line is worth pairing with the error_type label in Prometheus.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
       "targets": [
         {
           "refId": "A",
@@ -301,22 +649,107 @@
           }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "orchestrator" },        "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3274D9" } }] },
-          { "matcher": { "id": "byName", "options": "sql_agent" },           "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#56A64B" } }] },
-          { "matcher": { "id": "byName", "options": "rag_agent" },           "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A352CC" } }] },
-          { "matcher": { "id": "byName", "options": "synthesis" },           "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#D96C0A" } }] },
           {
-            "matcher": { "id": "byName", "options": "errors (all agents)" },
+            "matcher": {
+              "id": "byName",
+              "options": "orchestrator"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
-              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 4] } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3274D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql_agent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#56A64B"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rag_agent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#A352CC"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "synthesis"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#D96C0A"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors (all agents)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    8,
+                    4
+                  ]
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "legend": { "showLegend": true, "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
@@ -324,8 +757,16 @@
       "type": "timeseries",
       "title": "Chunks returned per retrieval",
       "description": "Sits at TOP_K (4) in normal operation. A drop toward zero means the Chroma collection is missing or was built with a different embedding model — re-run ingest_contracts.py --reset.",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
       "targets": [
         {
           "refId": "A",
@@ -338,7 +779,10 @@
           "unit": "short",
           "decimals": 1,
           "min": 0,
-          "color": { "mode": "fixed", "fixedColor": "#A352CC" },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#A352CC"
+          },
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -350,8 +794,13 @@
         "overrides": []
       },
       "options": {
-        "legend": { "showLegend": false },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       }
     }
   ]
