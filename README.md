@@ -75,37 +75,51 @@ SQL injection is blocked at two layers:
 
 ```
 salespilot/
-├── graph/
-│   ├── state.py          # AgentState TypedDict shared across all nodes
-│   ├── orchestrator.py   # Intent classification → routing decision
-│   ├── sql_agent.py      # NL → SQL → validation → execution
-│   ├── rag_agent.py      # ChromaDB vector retrieval
-│   ├── synthesis.py      # Grounded answer assembly
-│   └── build.py          # Wires nodes + conditional edges into the graph
+├── graph/                              # The LangGraph agent
+│   ├── state.py                        # AgentState TypedDict shared across all nodes
+│   ├── orchestrator.py                 # Intent classification → routing decision
+│   ├── sql_agent.py                    # NL → SQL → validation → execution
+│   ├── rag_agent.py                    # ChromaDB vector retrieval
+│   ├── synthesis.py                    # Grounded answer assembly
+│   └── build.py                        # Wires nodes + conditional edges into the graph
 │
-├── metrics.py            # All Prometheus metric objects + instrumentation helpers
-├── seed_data.py          # Creates DB tables, seeds sample data, writes contract docs
-├── ingest_contracts.py   # Chunks contract_docs/ into ChromaDB
-├── main.py               # CLI: python main.py "your question here"
-├── api.py                # FastAPI server (POST /ask, GET /metrics) + chat UI
-├── static/
-│   └── index.html        # Chat UI (single HTML file, no build step)
+├── api.py                              # FastAPI server (POST /ask, GET /metrics) + chat UI
+├── main.py                             # CLI: python main.py "your question here"
+├── metrics.py                          # Every Prometheus metric object + the
+│                                       #   track_agent / track_block / record_* helpers
+├── static/index.html                   # Chat UI (single HTML file, no build step)
 │
-├── observability/
-│   ├── prometheus.yml    # Scrape config
-│   ├── alerts.yml        # Alert rules
-│   └── grafana/          # Provisioned datasource + dashboard JSON
+├── seed_data.py                        # Creates and seeds the DB, writes contract docs
+├── ingest_contracts.py                 # Chunks contract_docs/ into ChromaDB via Voyage
 │
-├── scripts/
-│   └── seed_traffic.py   # Sends a mixed question load so the panels have data
+├── observability/                      # Everything the monitoring stack reads
+│   ├── prometheus.yml                  # Scrape config — targets api:8000/metrics
+│   ├── alerts.yml                      # 8 alert rules across 4 groups
+│   └── grafana/
+│       ├── provisioning/
+│       │   ├── datasources/            # Registers Prometheus automatically
+│       │   └── dashboards/             # Loads the dashboard from disk on boot
+│       └── dashboards/salespilot.json  # 10 panels, source of truth for the dashboard
 │
-├── Dockerfile            # API image
-├── docker-compose.yml    # api + prometheus + grafana
+├── scripts/seed_traffic.py             # Mixed question load so the panels have data
+│
+├── docs/
+│   ├── promql.md                       # The queries behind every number quoted here
+│   └── images/grafana-dashboard.png    # Rendered from the stack, not hand-captured
+│
+├── Dockerfile                          # API image
+├── .dockerignore                       # Keeps .env and chroma_db out of the build
+├── docker-compose.yml                  # api + prometheus + grafana + image renderer
+├── requirements.txt
+├── .env.example                        # Every variable the stack expects
 │
 └── tests/
-    ├── eval_rag.py        # RAG retrieval accuracy eval (top-1 file match)
-    └── eval_e2e.py        # End-to-end eval (answer correctness + source grounding)
+    ├── eval_rag.py                     # RAG retrieval accuracy (top-1 file match)
+    └── eval_e2e.py                     # Answer correctness + source grounding
 ```
+
+Not in git, created locally: `.env` (secrets), `chroma_db/` (rebuilt by
+`ingest_contracts.py`), `contract_docs/` (rewritten by `seed_data.py`).
 
 ---
 
@@ -281,7 +295,7 @@ questions that would otherwise be guesswork.
 | Measured | Value | What follows from it |
 |---|---|---|
 | Database share of `sql_agent` time | **2.6%** | The remaining ~97% is Claude turning the question into SQL. Adding indexes, tuning the query, or pooling connections would move almost nothing — the cost is generation, not execution. |
-| Retrieval share of `rag_agent` time | **99.96%** | The node does essentially nothing but wait on the Voyage embedding call. Local vector search over ~240 chunks is sub-millisecond, so `TOP_K` and ChromaDB are not the lever; caching query embeddings or moving the model in-process is. |
+| Retrieval share of `rag_agent` time | **99.9%** | The node does essentially nothing but wait on the Voyage embedding call. Local vector search over ~240 chunks is sub-millisecond, so `TOP_K` and ChromaDB are not the lever; caching query embeddings or moving the model in-process is. |
 | `orchestrator` input/output token ratio | **22.4** | It ships a fixed system prompt plus a tool schema and returns a two-token routing decision. A high ratio against an unchanging prefix is the textbook case for prompt caching. |
 | Cost per question | **$0.0023** | ≈ $2.33 per thousand questions on Haiku 4.5, across all three model calls. |
 | Refusal rate | **22.6%** | Tracks the deliberately-unanswerable share of the generated traffic, which is the intended behaviour rather than a fault — the counter exists so that a *drift* in this number is visible. |
@@ -289,6 +303,10 @@ questions that would otherwise be guesswork.
 Two of these actively cancelled work that looked reasonable beforehand: the
 database was the obvious suspect for SQL latency, and `TOP_K` was the obvious
 knob for retrieval latency. Neither would have helped.
+
+**[`docs/promql.md`](docs/promql.md)** has the query behind every figure above,
+plus the aggregation mistakes that produce confidently wrong answers — including
+the one that reported a 3.9% retrieval share against a true 99.9%.
 
 ### Alerts
 
