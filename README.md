@@ -259,7 +259,28 @@ counter moves too:
 python scripts/seed_traffic.py
 ```
 
-![Grafana dashboard](docs/images/grafana-dashboard.png)
+![SalesPilot Grafana dashboard showing cost per question, refusal rate, P95 latency by agent, and where each agent spends its time](docs/images/grafana-dashboard.png)
+
+> Figures measured over 31 requests against a local instance. P95 values are
+> indicative only at this sample size; ratios (time share, token ratio) are
+> stable.
+
+### What the numbers say
+
+The point of the dashboard is not that it exists — it is that it settles
+questions that would otherwise be guesswork.
+
+| Measured | Value | What follows from it |
+|---|---|---|
+| Database share of `sql_agent` time | **2.6%** | The remaining ~97% is Claude turning the question into SQL. Adding indexes, tuning the query, or pooling connections would move almost nothing — the cost is generation, not execution. |
+| Retrieval share of `rag_agent` time | **99.96%** | The node does essentially nothing but wait on the Voyage embedding call. Local vector search over ~240 chunks is sub-millisecond, so `TOP_K` and ChromaDB are not the lever; caching query embeddings or moving the model in-process is. |
+| `orchestrator` input/output token ratio | **22.4** | It ships a fixed system prompt plus a tool schema and returns a two-token routing decision. A high ratio against an unchanging prefix is the textbook case for prompt caching. |
+| Cost per question | **$0.0023** | ≈ $2.33 per thousand questions on Haiku 4.5, across all three model calls. |
+| Refusal rate | **22.6%** | Tracks the deliberately-unanswerable share of the generated traffic, which is the intended behaviour rather than a fault — the counter exists so that a *drift* in this number is visible. |
+
+Two of these actively cancelled work that looked reasonable beforehand: the
+database was the obvious suspect for SQL latency, and `TOP_K` was the obvious
+knob for retrieval latency. Neither would have helped.
 
 ### Alerts
 

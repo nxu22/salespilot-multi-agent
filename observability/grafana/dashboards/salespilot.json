@@ -163,45 +163,38 @@
     },
     {
       "id": 6,
-      "type": "timeseries",
+      "type": "bargauge",
       "title": "Where the time actually goes",
-      "description": "Share of each agent's wall-clock spent in its non-LLM inner block. Low database share means optimising SQL or indexes will not help — the time is in generating the query. Retrieval share is dominated by the Voyage embedding round-trip, not the vector search.",
+      "description": "Share of each agent's wall-clock spent in its non-LLM inner block, totalled across the selected range. Low database share means optimising SQL or indexes will not help — the time is in generating the query. Retrieval share is dominated by the Voyage embedding round-trip, not the vector search. Deliberately not a rate() time series: on a bursty workload the idle gaps drag a mean toward zero and understate the real share.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(sql_query_duration_seconds_sum[5m])) / clamp_min(sum(rate(agent_duration_seconds_sum{agent=\"sql_agent\"}[5m])), 0.001)",
-          "legendFormat": "sql_agent — database"
+          "expr": "sum(increase(sql_query_duration_seconds_sum[$__range])) / clamp_min(sum(increase(agent_duration_seconds_sum{agent=\"sql_agent\"}[$__range])), 0.001)",
+          "legendFormat": "sql_agent — database",
+          "instant": true
         },
         {
           "refId": "B",
-          "expr": "sum(rate(retrieval_duration_seconds_sum[5m])) / clamp_min(sum(rate(agent_duration_seconds_sum{agent=\"rag_agent\"}[5m])), 0.001)",
-          "legendFormat": "rag_agent — retrieval"
+          "expr": "sum(increase(retrieval_duration_seconds_sum[$__range])) / clamp_min(sum(increase(agent_duration_seconds_sum{agent=\"rag_agent\"}[$__range])), 0.001)",
+          "legendFormat": "rag_agent — retrieval",
+          "instant": true
         }
       ],
       "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "decimals": 1,
-          "min": 0,
-          "max": 1,
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": true
-          }
-        },
+        "defaults": { "unit": "percentunit", "decimals": 1, "min": 0, "max": 1 },
         "overrides": [
           { "matcher": { "id": "byName", "options": "sql_agent — database" },  "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#56A64B" } }] },
           { "matcher": { "id": "byName", "options": "rag_agent — retrieval" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A352CC" } }] }
         ]
       },
       "options": {
-        "legend": { "showLegend": true, "displayMode": "table", "placement": "bottom", "calcs": ["mean"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "valueMode": "text",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
       }
     },
 
