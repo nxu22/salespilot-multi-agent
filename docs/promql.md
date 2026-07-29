@@ -22,7 +22,7 @@ This project's traffic is bursty — a few minutes of questions, then idle. A
 `rate()` over a short window returns zero during the idle stretches, and any
 average across the whole window is then dragged toward zero. The first version
 of the "where does the time go" panel did exactly this and reported a **3.9%**
-retrieval share against a true **100%** — off by a factor of 25, in the
+retrieval share against a true **99.9%** — off by a factor of 25, in the
 direction that reverses the conclusion.
 
 `increase(...[$__range])` totals the numerator and denominator across the whole

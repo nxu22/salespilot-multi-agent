@@ -33,7 +33,8 @@ salespilot/
   ingest_contracts.py   # chunk contract_docs/ into ChromaDB
   main.py               # CLI entry: python main.py "question here"
   tests/
-    test_acceptance.py  # end-to-end acceptance questions
+    eval_rag.py         # retrieval accuracy: 6 (question -> expected file) cases
+    eval_e2e.py         # end-to-end answers + grounding: 5 cases (4 acceptance + 1 refusal)
 ```
 
 ## Data layer
@@ -109,7 +110,11 @@ Retrieval: top-4 chunks.
 5. **Synthesis node** — grounded answer assembly per the grounding rules.
    Verify: all acceptance questions pass; unanswerable questions get an
    honest "not found".
-6. **Langfuse tracing** — CallbackHandler wired into graph invocation.
+6. **Langfuse tracing** — `@observe()` from the `langfuse` SDK applied directly
+   to each node function (`orchestrator.py`, `sql_agent.py`, `rag_agent.py`,
+   `synthesis.py`) and to the CLI invocation in `main.py`, which wraps
+   `graph.invoke` in `@observe(name=<question>)`. No CallbackHandler is used, and
+   the FastAPI `/ask` path in `api.py` is not traced.
    Verify: full multi-agent trace visible with all node spans.
 
 UI and deployment follow after steps 1-6 pass.
@@ -121,6 +126,14 @@ UI and deployment follow after steps 1-6 pass.
 3. "Top 5 products by revenue this quarter?" → matches `seed_data.py --verify`
 4. "Compare Acme's contract price vs catalog price for product PX-1000" →
    $1,250 (products table) vs $1,100 (acme_corp_msa.md), both sources cited
+5. "What's the weather like today?" → must refuse, not answer
+
+Cases 1-4 are checked by number matching plus source presence. Case 5 is checked
+differently: `honest_refusal` phrase matching (`tests/eval_e2e.py:148-151`) against
+the phrase list at `tests/eval_e2e.py:94` — `could not find`, `not available`,
+`no data`, `unable to find`. That list is coupled to the exact refusal wording in
+`graph/synthesis.py:13` (`_REFUSAL_PHRASE`); changing the phrase there without
+updating the list makes case 5 fail.
 
 ## Environment
 
