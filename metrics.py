@@ -40,6 +40,12 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
 }
 _DEFAULT_PRICE = {"input": 0.0, "output": 0.0}
 
+# Cached tokens are billed off the input rate, not as their own line item: a cache
+# write costs 1.25x input (5-minute TTL, the default) and a read 0.1x. Kept next to
+# the pricing table so both move together when rates change.
+_CACHE_WRITE_MULTIPLIER = 1.25
+_CACHE_READ_MULTIPLIER = 0.10
+
 logger = logging.getLogger(__name__)
 
 # Model ids arrive dated ("claude-haiku-4-5-20251001"); the pricing table is
@@ -95,7 +101,7 @@ agent_errors_total = Counter(
 llm_tokens_total = Counter(
     "llm_tokens_total",
     "LLM tokens consumed",
-    labelnames=("agent", "model", "type"),  # type: input | output
+    labelnames=("agent", "model", "type"),  # type: input | output | cache_write | cache_read
 )
 
 llm_cost_usd_total = Counter(
@@ -132,10 +138,21 @@ refusals_total = Counter(
 # --------------------------------------------------------------------------
 # Token / cost recording
 # --------------------------------------------------------------------------
-def _extract_usage(usage: Any) -> tuple[int, int]:
-    """Pull (input_tokens, output_tokens) from an Anthropic or OpenAI usage object."""
+def _extract_usage(usage: Any) -> tuple[int, int, int, int]:
+    """
+    Pull (input, output, cache_write, cache_read) from an Anthropic or OpenAI usage object.
+
+    With prompt caching on, `input_tokens` is only the *uncached remainder* — the
+    full prompt is input + cache_creation + cache_read. Reading input_tokens alone
+    would under-count the prompt and under-report cost, silently, with no failed
+    request to notice. Same failure shape as UnpricedModelInUse, so it gets the
+    same treatment: count it explicitly rather than let it vanish.
+
+    Both cache fields are absent on responses that never requested caching, so they
+    read as 0 and the arithmetic below collapses to the uncached case.
+    """
     if usage is None:
-        return 0, 0
+        return 0, 0, 0, 0
     if isinstance(usage, dict):
         get = usage.get
     else:
@@ -143,7 +160,9 @@ def _extract_usage(usage: Any) -> tuple[int, int]:
 
     prompt = get("input_tokens") or get("prompt_tokens") or 0
     completion = get("output_tokens") or get("completion_tokens") or 0
-    return int(prompt), int(completion)
+    cache_write = get("cache_creation_input_tokens") or 0
+    cache_read = get("cache_read_input_tokens") or 0
+    return int(prompt), int(completion), int(cache_write), int(cache_read)
 
 
 def record_usage(agent: str, model: str, usage: Any) -> None:
@@ -153,15 +172,27 @@ def record_usage(agent: str, model: str, usage: Any) -> None:
     Call this wherever usage is already reported to Langfuse — same data,
     two destinations. `usage` accepts an Anthropic/OpenAI usage object or a dict.
     """
-    input_tokens, output_tokens = _extract_usage(usage)
-    if not (input_tokens or output_tokens):
+    input_tokens, output_tokens, cache_write, cache_read = _extract_usage(usage)
+    if not (input_tokens or output_tokens or cache_write or cache_read):
         return
 
     llm_tokens_total.labels(agent=agent, model=model, type="input").inc(input_tokens)
     llm_tokens_total.labels(agent=agent, model=model, type="output").inc(output_tokens)
+    if cache_write:
+        llm_tokens_total.labels(agent=agent, model=model, type="cache_write").inc(cache_write)
+    if cache_read:
+        llm_tokens_total.labels(agent=agent, model=model, type="cache_read").inc(cache_read)
 
     price = _lookup_price(model)
-    cost = (input_tokens * price["input"] + output_tokens * price["output"]) / 1_000_000
+    cost = (
+        input_tokens * price["input"]
+        + output_tokens * price["output"]
+        # Cached tokens bill off the input rate at fixed multipliers: a write costs
+        # 1.25x (5-minute TTL, the default), a read 0.1x. Pricing them at the plain
+        # input rate would overstate reads by 10x.
+        + cache_write * price["input"] * _CACHE_WRITE_MULTIPLIER
+        + cache_read * price["input"] * _CACHE_READ_MULTIPLIER
+    ) / 1_000_000
     # Always inc, even at 0: a visible $0 is debuggable, a missing series is not.
     llm_cost_usd_total.labels(agent=agent, model=model).inc(cost)
 

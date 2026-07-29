@@ -123,9 +123,24 @@ clamp_min(sum by (agent) (increase(llm_tokens_total{type="output"}[$__range])), 
 | `synthesis` | 5.8 | Retrieved chunks and SQL rows in; a short grounded answer out |
 | `sql_agent` | 4.8 | Schema and rules in; one SELECT out |
 
-The orchestrator's ratio is the actionable one. A high ratio against a prefix
-that never changes is the textbook case for prompt caching — the cached portion
-bills at roughly a tenth of the input rate.
+The orchestrator's ratio looks like the actionable one — a high ratio against a
+prefix that never changes is what prompt caching exists for, and cached tokens do
+bill at roughly a tenth of the input rate.
+
+**It isn't actionable, and this query is why the mistake was easy to make.** Caching
+requires a minimum prefix length (4096 tokens on Haiku 4.5); the orchestrator's
+prefix is around 407. A ratio is scale-free, so it reads identically at 400 tokens
+and at 40,000 — the number that decides whether caching applies is absent from the
+panel by construction. For that, query the absolute count:
+
+```promql
+sum by (agent) (increase(llm_tokens_total{type="input"}[$__range]))
+  /
+clamp_min(sum by (agent) (increase(agent_requests_total{status="success"}[$__range])), 1)
+```
+
+Input tokens per request, per agent. Compare that against the minimum for the model
+in use before concluding a prefix is cacheable.
 
 ---
 

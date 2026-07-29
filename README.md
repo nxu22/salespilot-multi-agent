@@ -27,11 +27,25 @@ The project is instrumented end to end (Prometheus + Grafana for aggregate healt
 |---|---|---|
 | Database share of `sql_agent` time | **2.6%** | The other ~97% is Claude turning the question into SQL. Indexes, query tuning, connection pooling — none of it would move the needle. The cost is generation, not execution. |
 | Retrieval share of `rag_agent` time | **99.9%** | The node does almost nothing but wait on a remote Voyage embedding call. Local vector search over ~240 chunks is sub-millisecond, so `TOP_K` and ChromaDB are not the lever — caching query embeddings or moving the model in-process is. |
-| `orchestrator` input/output token ratio | **22.4** | A fixed system prompt plus tool schema in, a two-token routing decision out. A high ratio against an unchanging prefix is the textbook case for prompt caching. |
+| `orchestrator` input/output token ratio | **22.4** | A fixed system prompt plus tool schema in, a two-token routing decision out. This looked like the textbook case for prompt caching. It isn't — see below. |
 | Cost per question | **$0.0023** | ≈ $2.33 per thousand questions on Haiku 4.5, across all three model calls. |
 | Refusal rate | **22.6%** | Matches the deliberately-unanswerable share of generated traffic — intended behaviour. The counter exists so drift in this number is visible. |
 
 The database was the obvious suspect for SQL latency. `TOP_K` was the obvious knob for retrieval latency. Neither would have helped, and I'd have spent a day finding that out by hand.
+
+### The third one the instrumentation got wrong
+
+A 22.4 ratio against a prefix that never changes is what prompt caching exists for, so that became the next change. It doesn't work here, and the dashboard could not have told me why.
+
+Caching has a **minimum cacheable prefix**, and it varies by model — 512 tokens on the newest models, 1024 on most, and **4096 on Haiku 4.5**, which is what this runs. Below the minimum nothing caches: no error, no warning, `cache_creation_input_tokens` simply comes back `0`.
+
+The orchestrator's cacheable prefix is its tool schema plus system prompt — [`graph/orchestrator.py:9-44`](graph/orchestrator.py) — and that is **1,629 characters**. A token is at minimum one character, so even at the impossible ceiling of one token per character the prefix is 1,629 tokens against a 4,096 threshold. Realistically it is around 407, which is also what the measured 22.4 ratio implies. It is short by roughly 10x, and no current model's minimum is low enough to close that.
+
+The ceiling was never high either. Cache reads bill at 0.1x input and writes at 1.25x, so a perfectly cached orchestrator prefix was worth about $0.0002 of the $0.0023 per question — under 10%.
+
+The ratio was real and the reasoning from it was sound. It was just the wrong quantity: **caching keys off absolute prefix length, and a ratio cannot see that.** Both numbers come from `llm_tokens_total`, but only one of them decides whether the feature applies, and the panel showed the other. The instrumentation earned its keep twice by killing optimizations before I built them; this is the case where it pointed at one and I still had to go read the provider's constraints to find out it was unavailable.
+
+What it did leave behind is a real fix: `_extract_usage` in [`metrics.py`](metrics.py) read only `input_tokens`, which under caching is just the *uncached remainder*. Had caching ever been switched on anywhere, token counts and spend would have under-reported silently. That is now handled, along with the 1.25x/0.1x cache rates — the same class of bug as `UnpricedModelInUse`, caught by reading the billing model rather than by a failure.
 
 > Measured over 31 requests against a local instance. P95 values are indicative only at this sample size; the ratios (time share, token ratio) are stable. [`docs/promql.md`](docs/promql.md) has the query behind every figure — including the aggregation mistake that reports a 3.9% retrieval share against a true 99.9%.
 
@@ -120,7 +134,7 @@ Q5 is the one that matters. A system that answers it is a system that will inven
 - **The dashboard figures come from 31 requests.** Ratios are trustworthy at that sample size; P95 latencies are not. Treat them as directional.
 - **Seed data expires.** `seed_data.py` generates order dates relative to the seeding day, so date-bounded questions ("this quarter") go stale and evals degrade. Re-seed before drawing conclusions.
 - **Cost tracking covers Anthropic only.** Voyage embedding spend isn't metered — negligible against generation at this scale, but it's a gap, not an absence.
-- **Prompt caching isn't implemented yet.** The orchestrator's 22.4 token ratio identifies the win; collecting it is the next change.
+- **Prompt caching doesn't apply.** The orchestrator's prefix is ~10x shorter than Haiku 4.5's 4096-token minimum, so the win the 22.4 ratio implied isn't collectable. Token accounting now handles the cache fields regardless.
 - **The evals aren't wired to CI.** They're run by hand, which means "green" is a claim about the last time someone remembered to run them.
 - **Single-tenant.** No auth, no per-user isolation. It's a demonstration of the agent architecture, not a product.
 
@@ -205,7 +219,7 @@ Neither replaces the other. You can't get a P95 across ten thousand requests by 
 | `agent_duration_seconds` | histogram | Which of the four nodes is the bottleneck |
 | `agent_requests_total` | counter | Throughput per node, split success/error |
 | `agent_errors_total` | counter | Which node fails, and with which exception |
-| `llm_tokens_total` | counter | Input/output ratio per node — the prompt-caching signal |
+| `llm_tokens_total` | counter | Tokens per node, split `input` / `output` / `cache_write` / `cache_read` |
 | `llm_cost_usd_total` | counter | Spend per node, derived from tokens and `MODEL_PRICING` |
 | `sql_query_duration_seconds` | histogram | Database time, isolated from surrounding LLM time |
 | `retrieval_duration_seconds` | histogram | Vector search plus the Voyage embedding round-trip |
